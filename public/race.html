@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuel Line — Ultra Race Fueling Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1517;
+    --bg-elev: #161E21;
+    --bg-card: #1B2529;
+    --bg-card-hi: #202C31;
+    --line: #263438;
+    --line-soft: #1D292D;
+    --text: #EDEFEA;
+    --text-muted: #8B9A94;
+    --text-dim: #5E6E68;
+    --accent: #4C8FA6;
+    --accent-hi: #6BAFC6;
+    --accent-2: #C9A24B;
+    --good: #5FA37A;
+    --good-bg: rgba(95,163,122,0.12);
+    --warn: #C98A3D;
+    --warn-bg: rgba(201,138,61,0.14);
+    --bad: #C1553D;
+    --bad-bg: rgba(193,85,61,0.14);
+    --font-display: 'Big Shoulders Display', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --radius: 10px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--font-body); }
+  body{ min-height:100vh; }
+  ::selection{ background:var(--accent); color:#0F1517; }
+  button{ font-family:var(--font-body); cursor:pointer; }
+  input, select, textarea{ font-family:var(--font-mono); }
+  a{ color:var(--accent-hi); }
+  h1,h2,h3,h4{ font-family:var(--font-display); font-weight:700; letter-spacing:0.02em; margin:0 0 4px 0; text-transform:uppercase; }
+  h3{ font-size:15px; color:var(--text-muted); letter-spacing:0.12em; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:16px; }
+  p{ margin:0; }
+  .contour-bg{
+    position:absolute; inset:0; pointer-events:none; opacity:0.5;
+    background-image:
+      repeating-linear-gradient(180deg, transparent 0 27px, var(--line-soft) 27px 28px);
+    -webkit-mask-image: linear-gradient(180deg, black, transparent 92%);
+            mask-image: linear-gradient(180deg, black, transparent 92%);
+  }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--accent-hi); outline-offset:2px;
+  }
+
+  /* ---------- layout shell ---------- */
+  #app{ max-width:1080px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar{
+    position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:16px;
+    padding:14px 20px; background:rgba(15,21,23,0.92); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; margin-right:auto; }
+  .brand-mark{ color:var(--accent-2); font-family:var(--font-display); font-size:22px; }
+  .brand-name{ font-family:var(--font-display); font-size:20px; letter-spacing:0.04em; }
+  .brand-race{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); border-left:1px solid var(--line); padding-left:10px; }
+  .view-nav{ display:flex; gap:6px; background:var(--bg-card); border:1px solid var(--line); border-radius:999px; padding:3px; }
+  .nav-btn{ background:transparent; border:none; color:var(--text-muted); padding:7px 16px; border-radius:999px; font-size:13px; font-weight:600; letter-spacing:0.03em; }
+  .nav-btn.active{ background:var(--accent); color:#0B1315; }
+  .header-status{ display:flex; align-items:center; gap:12px; }
+  .header-elapsed{ font-family:var(--font-mono); font-size:15px; color:var(--accent-hi); font-variant-numeric:tabular-nums; }
+  .status-pill{ font-size:10px; text-transform:uppercase; letter-spacing:0.1em; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--text-muted); }
+  .status-pill.running{ color:var(--good); border-color:var(--good); }
+  .status-pill.paused{ color:var(--warn); border-color:var(--warn); }
+  .status-pill.stopped{ color:var(--bad); border-color:var(--bad); }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--text-muted); padding:7px 12px; border-radius:6px; font-size:12px; }
+  .btn-ghost:hover{ border-color:var(--bad); color:var(--bad); }
+  #shareBtn:hover{ border-color:var(--accent); color:var(--accent-hi); }
+  #copyShareBtn:hover, #closeShareBtn:hover{ border-color:var(--accent); color:var(--accent-hi); }
+
+  .conn-dot{ width:9px; height:9px; border-radius:50%; background:var(--text-dim); flex:none; transition:background .2s; }
+  .conn-dot.live{ background:var(--good); box-shadow:0 0 6px var(--good); }
+  .conn-dot.down{ background:var(--bad); box-shadow:0 0 6px var(--bad); }
+
+  .share-banner{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--bg-elev); border-bottom:1px solid var(--line); padding:10px 20px; font-size:12px; color:var(--text-muted); }
+  .share-banner.hidden{ display:none; }
+  .share-banner code{ background:var(--bg-card); border:1px solid var(--line); color:var(--accent-hi); padding:4px 8px; border-radius:5px; font-family:var(--font-mono); font-size:12px; }
+  .share-banner button{ margin-left:auto; }
+  .share-banner #closeShareBtn{ margin-left:4px; padding:5px 9px; }
+
+  .connecting-overlay{ position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; align-items:center; justify-content:center; }
+  .connecting-overlay.hidden{ display:none; }
+  .connecting-box{ text-align:center; color:var(--text-muted); font-family:var(--font-mono); font-size:13px; }
+  .connecting-spinner{ width:28px; height:28px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--accent-hi); margin:0 auto 14px; animation:spin 0.9s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  main{ flex:1; padding:24px 20px 100px; }
+  .view{ display:none; }
+  .view.active{ display:block; animation:fadein 0.25s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .panel{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin-bottom:18px; }
+
+  /* ---------- setup form ---------- */
+  .setup-shell{ max-width:640px; margin:0 auto; }
+  .setup-hero{ position:relative; padding:34px 4px 22px; margin-bottom:8px; overflow:hidden; }
+  .setup-hero h1{ font-size:42px; line-height:1; position:relative; }
+  .setup-hero .eyebrow{ font-family:var(--font-mono); color:var(--accent-2); font-size:12px; letter-spacing:0.18em; text-transform:uppercase; margin-bottom:10px; position:relative; }
+  .setup-hero p.lede{ color:var(--text-muted); font-size:14px; max-width:480px; margin-top:10px; position:relative; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:6px; }
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--bg-elev); border:1px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:6px; font-size:14px;
+  }
+  .field textarea{ resize:vertical; min-height:56px; font-family:var(--font-body); }
+  .field-hint{ font-size:11px; color:var(--text-dim); margin-top:4px; }
+  .targets-quad{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .btn-primary{ background:var(--accent); color:#0B1315; border:none; padding:13px 22px; border-radius:8px; font-size:14px; font-weight:700; letter-spacing:0.03em; }
+  .btn-primary:hover{ background:var(--accent-hi); }
+  .btn-primary:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn-secondary{ background:transparent; border:1px solid var(--accent); color:var(--accent-hi); padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; }
+  .btn-secondary:hover{ background:rgba(76,143,166,0.1); }
+  .setup-actions{ display:flex; justify-content:flex-end; margin-top:22px; }
+
+  /* ---------- race view ---------- */
+  .race-hero{ position:relative; text-align:center; padding:30px 10px 20px; border-radius:var(--radius); background:var(--bg-elev); border:1px solid var(--line); overflow:hidden; margin-bottom:20px; }
+  .timer-display{ font-family:var(--font-mono); font-size:clamp(46px,9vw,84px); font-weight:600; letter-spacing:0.02em; font-variant-numeric:tabular-nums; position:relative; line-height:1; }
+  .timer-sub{ font-size:12px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase; margin-top:6px; position:relative; }
+  .race-controls{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; position:relative; }
+  .ctrl-btn{ padding:11px 20px; border-radius:8px; font-size:13px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid var(--line); background:var(--bg-card); color:var(--text); }
+  .ctrl-btn.start{ background:var(--good); border-color:var(--good); color:#0B1613; }
+  .ctrl-btn.stop{ border-color:var(--bad); color:var(--bad); }
+  .ctrl-btn.stop:hover{ background:var(--bad-bg); }
+  .ctrl-btn:disabled{ opacity:0.35; cursor:not-allowed; }
+  .ctrl-btn.lap{ border-color:var(--accent); color:var(--accent-hi); }
+  .ctrl-btn.log{ background:var(--accent-2); border-color:var(--accent-2); color:#20160A; }
+  .ctrl-btn.log:hover{ background:#DBB463; }
+  .ctrl-btn.note{ border-color:var(--accent); color:var(--accent-hi); }
+  .ctrl-btn.note:hover{ background:rgba(76,143,166,0.12); }
+  .ctrl-btn.stop.small{ padding:8px 14px; font-size:11px; letter-spacing:0.03em; opacity:0.75; }
+  .ctrl-btn.stop.small:hover{ opacity:1; }
+  .stop-zone{ display:flex; justify-content:center; margin:4px 0 24px; }
+
+  .lap-display{ margin-top:12px; position:relative; }
+  .lap-display.hidden{ display:none; }
+  .lap-display-value{ font-family:var(--font-mono); font-size:clamp(20px,4vw,30px); color:var(--accent-2); font-variant-numeric:tabular-nums; }
+  .lap-display-label{ font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-top:2px; }
+
+  .metrics-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:18px; }
+  .metric-card{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; border-top:3px solid var(--line); transition:border-color .3s; }
+  .metric-card.status-good{ border-top-color:var(--good); }
+  .metric-card.status-warn{ border-top-color:var(--warn); }
+  .metric-card.status-bad{ border-top-color:var(--bad); }
+  .metric-card .m-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; }
+  .metric-card .m-target{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+  .metric-card .m-actual{ font-family:var(--font-mono); font-size:32px; font-weight:600; margin-top:8px; line-height:1; }
+  .metric-card .m-actual .unit{ font-size:13px; color:var(--text-muted); font-weight:400; margin-left:3px; }
+  .metric-card .m-delta{ font-family:var(--font-mono); font-size:13px; margin-top:10px; padding:6px 10px; border-radius:6px; display:inline-block; }
+  .metric-card .m-delta.good{ color:var(--good); background:var(--good-bg); }
+  .metric-card .m-delta.warn{ color:var(--warn); background:var(--warn-bg); }
+  .metric-card .m-delta.bad{ color:var(--bad); background:var(--bad-bg); }
+  .metric-card .m-suggest{ font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.4; }
+
+  .panel-head-row{ display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:16px; }
+  .panel-head-row h3{ border:none; padding:0; margin:0; }
+  .link-btn{ background:none; border:none; color:var(--accent-hi); font-size:12px; text-decoration:underline; padding:0; }
+
+  form.inline-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; align-items:end; }
+  form.inline-form .field{ margin-bottom:0; }
+  form.inline-form .submit-cell{ display:flex; }
+  form.inline-form button[type=submit]{ width:100%; }
+
+  table{ width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:13px; }
+  table th{ text-align:left; color:var(--text-muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; padding:8px 10px; border-bottom:1px solid var(--line); }
+  table td{ padding:8px 10px; border-bottom:1px solid var(--line-soft); }
+  table tr:last-child td{ border-bottom:none; }
+  .empty-row td{ color:var(--text-dim); font-family:var(--font-body); font-style:italic; text-align:center; padding:18px; }
+
+  /* ---------- modal ---------- */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(6,10,11,0.72); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .modal-overlay.hidden{ display:none; }
+  .modal{ background:var(--bg-card-hi); border:1px solid var(--line); border-radius:var(--radius); padding:24px; width:100%; max-width:460px; max-height:90vh; overflow:auto; }
+  .modal h3{ margin-bottom:18px; }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+
+  /* ---------- summary view ---------- */
+  .summary-header{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+  .summary-header .rname{ font-size:30px; }
+  .summary-meta{ display:flex; gap:18px; flex-wrap:wrap; font-family:var(--font-mono); font-size:12px; color:var(--text-muted); margin-top:6px; }
+  .totals-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:20px; }
+  .total-card{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; }
+  .total-card .t-label{ font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.08em; }
+  .total-card .t-value{ font-family:var(--font-mono); font-size:26px; margin-top:6px; }
+  .total-card .t-sub{ font-size:11px; color:var(--text-dim); margin-top:4px; font-family:var(--font-mono); }
+  .chart-wrap{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; }
+  .chart-canvas-box{ position:relative; width:100%; }
+  .chart-canvas-box svg{ width:100%; height:auto; display:block; }
+  .chart-legend{ display:flex; gap:16px; font-size:11px; color:var(--text-muted); margin-bottom:10px; align-items:center; text-transform:uppercase; letter-spacing:0.05em; }
+  .legend-dot{ display:inline-block; width:16px; height:0; border-top:2px solid; margin-right:5px; vertical-align:middle; }
+  .legend-dot.actual{ border-top-style:solid; border-top-color:#6BAFC6; }
+  .legend-dot.target{ border-top-style:dashed; border-top-color:#C9A24B; }
+  .print-btn{ margin-top:6px; }
+
+  @media print{
+    .topbar, .fab, #view-setup, #view-race, .print-btn{ display:none !important; }
+    body{ background:white; color:black; }
+  }
+
+  @media (max-width:640px){
+    .field-row, .targets-quad{ grid-template-columns:1fr 1fr; }
+    .topbar{ gap:10px; }
+    .view-nav{ order:3; width:100%; justify-content:center; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">⌇</span>
+      <span class="brand-name">Fuel Line</span>
+      <span class="brand-race" id="headerRaceName">No race set up yet</span>
+    </div>
+    <nav class="view-nav">
+      <button class="nav-btn" data-view="setup">Setup</button>
+      <button class="nav-btn" data-view="race">Race</button>
+      <button class="nav-btn" data-view="summary">Summary</button>
+    </nav>
+    <div class="header-status">
+      <span class="conn-dot" id="connDot" title="Connection status"></span>
+      <button class="btn-ghost" id="shareBtn">Share</button>
+      <span class="status-pill" id="statusPill">Not started</span>
+      <span class="header-elapsed" id="headerElapsed">00:00:00</span>
+      <button class="btn-ghost" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="share-banner hidden" id="shareBanner">
+    <span>Share this link so crew can view and log on their own device:</span>
+    <code id="shareUrl"></code>
+    <button class="btn-ghost" id="copyShareBtn">Copy link</button>
+    <button class="btn-ghost" id="closeShareBtn">✕</button>
+  </div>
+
+  <div class="connecting-overlay" id="connectingOverlay">
+    <div class="connecting-box">
+      <div class="connecting-spinner"></div>
+      <div id="connectingLabel">Connecting to race…</div>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ===================== SETUP VIEW ===================== -->
+    <section id="view-setup" class="view">
+      <div class="setup-shell">
+        <div class="setup-hero">
+          <div class="contour-bg"></div>
+          <div class="eyebrow">Pre-race setup</div>
+          <h1>Set the line before<br>you run it.</h1>
+          <p class="lede">Enter your race and starting fuel targets. You and your crew can adjust every number mid-race — nothing here is locked in.</p>
+        </div>
+
+        <form id="setupForm">
+          <div class="field">
+            <label for="raceName">Race name</label>
+            <input type="text" id="raceName" placeholder="e.g. Barkfoot 100" style="font-family:var(--font-body)">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="scheduledStart">Intended start time</label>
+              <input type="datetime-local" id="scheduledStart">
+            </div>
+            <div class="field">
+              <label for="terrain">Terrain</label>
+              <select id="terrain">
+                <option value="trail">Trail</option>
+                <option value="road">Road</option>
+                <option value="mixed">Mixed</option>
+                <option value="track">Track</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="startTemp">Starting temperature</label>
+              <div style="display:flex; gap:8px;">
+                <input type="number" id="startTemp" placeholder="e.g. 58" style="flex:1">
+                <select id="tempUnit" style="width:70px">
+                  <option value="F">°F</option>
+                  <option value="C">°C</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="conditions">Conditions</label>
+              <select id="conditions">
+                <option value="sunny">Sunny</option>
+                <option value="cloudy">Cloudy</option>
+                <option value="overcast">Overcast</option>
+                <option value="rain">Rain</option>
+                <option value="snow">Snow</option>
+                <option value="windy">Windy</option>
+                <option value="humid">Hot / humid</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="setupNotes">Notes (optional)</label>
+            <textarea id="setupNotes" placeholder="Anything the crew should know going in"></textarea>
+          </div>
+
+          <div class="field" style="margin-top:22px;">
+            <label style="font-size:12px; color:var(--accent-2);">Starting fuel targets — you can change these any time</label>
+          </div>
+          <div class="targets-quad">
+            <div class="field">
+              <label for="t-cal">Calories / hr</label>
+              <input type="number" id="t-cal" value="250" min="0">
+            </div>
+            <div class="field">
+              <label for="t-carb">Carbs (g) / hr</label>
+              <input type="number" id="t-carb" value="60" min="0">
+            </div>
+            <div class="field">
+              <label for="t-fluid">Fluid (mL) / hr</label>
+              <input type="number" id="t-fluid" value="500" min="0">
+            </div>
+            <div class="field">
+              <label for="t-electrolyte">Electrolytes (mg) / L</label>
+              <input type="number" id="t-electrolyte" value="500" min="0">
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:22px; display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" id="autoLapEnabled" style="width:auto;">
+            <label for="autoLapEnabled" style="margin:0; text-transform:none; font-size:14px; color:var(--text); cursor:pointer;">Enable auto lap</label>
+          </div>
+          <div class="field" id="autoLapIntervalField" style="display:none; max-width:220px;">
+            <label for="autoLapInterval">Auto lap every (minutes)</label>
+            <input type="number" id="autoLapInterval" min="1" value="30">
+            <div class="field-hint">A lap is recorded automatically at this interval once the race starts, on top of any manual laps.</div>
+          </div>
+
+          <div class="setup-actions">
+            <button type="submit" class="btn-primary" id="toRaceBtn">Continue to race page →</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== RACE VIEW ===================== -->
+    <section id="view-race" class="view">
+
+      <div class="race-hero">
+        <div class="contour-bg"></div>
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+        <div class="timer-sub" id="timerSub">Not started</div>
+        <div class="lap-display hidden" id="lapDisplayWrap">
+          <div class="lap-display-value" id="lapDisplay">00:00:00</div>
+          <div class="lap-display-label">Current lap</div>
+        </div>
+        <div class="race-controls">
+          <button class="ctrl-btn start" id="startBtn">Start race</button>
+          <button class="ctrl-btn" id="pauseBtn" disabled>Pause</button>
+          <button class="ctrl-btn lap" id="lapBtn" disabled>Lap</button>
+          <button class="ctrl-btn log" id="openLogBtn">+ Log intake</button>
+          <button class="ctrl-btn note" id="openNoteBtn">+ Add note</button>
+        </div>
+      </div>
+
+      <div class="metrics-grid" id="metricsGrid"></div>
+
+      <div class="panel">
+        <div class="panel-head-row">
+          <h3>Targets (current)</h3>
+          <span class="field-hint" id="targetsHint">Changes apply from this moment forward only</span>
+        </div>
+        <form class="inline-form" id="targetsForm">
+          <div class="field">
+            <label for="e-cal">Calories / hr</label>
+            <input type="number" id="e-cal" min="0">
+          </div>
+          <div class="field">
+            <label for="e-carb">Carbs (g) / hr</label>
+            <input type="number" id="e-carb" min="0">
+          </div>
+          <div class="field">
+            <label for="e-fluid">Fluid (mL) / hr</label>
+            <input type="number" id="e-fluid" min="0">
+          </div>
+          <div class="field">
+            <label for="e-electrolyte">Electrolytes (mg) / L</label>
+            <input type="number" id="e-electrolyte" min="0">
+          </div>
+          <div class="field submit-cell">
+            <button type="submit" class="btn-secondary">Update targets</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h3>Conditions</h3>
+        <form class="inline-form" id="conditionsForm">
+          <div class="field">
+            <label for="c-temp">Temperature</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="c-temp" style="flex:1">
+              <select id="c-tempUnit" style="width:64px">
+                <option value="F">°F</option>
+                <option value="C">°C</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="c-conditions">Conditions</label>
+            <select id="c-conditions">
+              <option value="sunny">Sunny</option>
+              <option value="cloudy">Cloudy</option>
+              <option value="overcast">Overcast</option>
+              <option value="rain">Rain</option>
+              <option value="snow">Snow</option>
+              <option value="windy">Windy</option>
+              <option value="humid">Hot / humid</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="c-note">Note (optional)</label>
+            <input type="text" id="c-note" style="font-family:var(--font-body)" placeholder="e.g. clouds rolled in">
+          </div>
+          <div class="field submit-cell">
+            <button type="submit" class="btn-secondary">Log condition update</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head-row">
+          <h3>Laps</h3>
+          <span class="field-hint" id="lapCount">0 laps</span>
+        </div>
+        <table>
+          <thead><tr><th>Lap</th><th>Split</th><th>Elapsed</th><th>Time of day</th></tr></thead>
+          <tbody id="lapsBody"><tr class="empty-row"><td colspan="4">No laps recorded yet</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="stop-zone">
+        <button class="ctrl-btn stop small" id="stopBtn" disabled>Stop &amp; complete race</button>
+      </div>
+    </section>
+
+    <!-- ===================== SUMMARY VIEW ===================== -->
+    <section id="view-summary" class="view">
+      <div class="summary-header">
+        <div>
+          <div class="eyebrow" style="color:var(--accent-2); font-family:var(--font-mono); font-size:11px; letter-spacing:0.15em; text-transform:uppercase;" id="summaryStatusLabel">In progress</div>
+          <h1 class="rname" id="summaryRaceName">Untitled race</h1>
+          <div class="summary-meta" id="summaryMeta"></div>
+        </div>
+        <div>
+          <button class="btn-secondary print-btn" id="printBtn">Print report</button>
+        </div>
+      </div>
+
+      <div class="totals-grid" id="totalsGrid"></div>
+
+      <div class="chart-wrap">
+        <h3>Calories — actual vs. target</h3>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-canvas-box" id="chartCal"></div>
+      </div>
+      <div class="chart-wrap">
+        <h3>Carbohydrates — actual vs. target</h3>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-canvas-box" id="chartCarb"></div>
+      </div>
+      <div class="chart-wrap">
+        <h3>Fluid — actual vs. target</h3>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-canvas-box" id="chartFluid"></div>
+      </div>
+      <div class="chart-wrap">
+        <h3>Electrolytes — actual vs. expected</h3>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Expected</div>
+        <div class="chart-canvas-box" id="chartElectrolyte"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Full race log</h3>
+        <table>
+          <thead><tr><th>Race Time</th><th>Logged Time</th><th>Event</th><th>Detail</th></tr></thead>
+          <tbody id="auditBody"><tr class="empty-row"><td colspan="4">Nothing logged yet</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== LOG INTAKE MODAL ===================== -->
+<div class="modal-overlay hidden" id="logModal">
+  <div class="modal">
+    <h3>Log intake</h3>
+    <form id="logForm">
+      <div class="field-row">
+        <div class="field">
+          <label for="l-cal">Calories (kcal)</label>
+          <input type="number" id="l-cal" min="0" value="0">
+        </div>
+        <div class="field">
+          <label for="l-carb">Carbs (g)</label>
+          <input type="number" id="l-carb" min="0" value="0">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="l-fluid">Fluid (mL)</label>
+          <input type="number" id="l-fluid" min="0" value="0">
+        </div>
+        <div class="field">
+          <label for="l-electrolyte">Electrolytes (mg)</label>
+          <input type="number" id="l-electrolyte" min="0" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <label for="l-minutesAgo">Minutes ago (0 = right now)</label>
+        <input type="number" id="l-minutesAgo" min="0" value="0">
+      </div>
+      <div class="field">
+        <label for="l-note">Note (optional)</label>
+        <input type="text" id="l-note" style="font-family:var(--font-body)" placeholder="e.g. gel + half a banana at aid station 3">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="cancelLogBtn">Cancel</button>
+        <button type="submit" class="btn-primary">Save entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== ADD NOTE MODAL ===================== -->
+<div class="modal-overlay hidden" id="noteModal">
+  <div class="modal">
+    <h3>Add note</h3>
+    <form id="noteForm">
+      <div class="field">
+        <label for="n-text">Note</label>
+        <textarea id="n-text" placeholder="e.g. runner reports mild nausea, slowing down on climbs" style="min-height:90px" required></textarea>
+      </div>
+      <div class="field">
+        <label for="n-minutesAgo">Minutes ago (0 = right now)</label>
+        <input type="number" id="n-minutesAgo" min="0" value="0">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="cancelNoteBtn">Cancel</button>
+        <button type="submit" class="btn-primary">Save note</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const HOUR = 3600000;
+  let state = null;          // authoritative state, only ever set from a server response
+  let tickHandle = null;
+  let pollHandle = null;
+  let metricEls = {};
+  let clockOffsetMs = 0;     // serverNow - Date.now(), so every client agrees on elapsed time
+  let firstStateReceived = false;
+  const POLL_MS = 4000;
+
+  const raceId = (function(){
+    const parts = location.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("r");
+    return idx >= 0 && parts[idx+1] ? parts[idx+1] : null;
+  })();
+
+  /* ---------------- server communication (plain HTTP polling) ---------------- */
+
+  function applyServerResponse(data){
+    clockOffsetMs = (data.serverNow||Date.now()) - Date.now();
+    state = data.state;
+    if(!firstStateReceived){
+      firstStateReceived = true;
+      document.getElementById("connectingOverlay").classList.add("hidden");
+    }
+    setConnStatus("live");
+    renderAll();
+  }
+
+  async function pollOnce(){
+    if(!raceId) return;
+    try{
+      const res = await fetch("/api/races/"+encodeURIComponent(raceId));
+      if(res.status === 404){
+        document.getElementById("connectingLabel").textContent = "This race could not be found.";
+        setConnStatus("down");
+        return;
+      }
+      const data = await res.json();
+      applyServerResponse(data);
+    } catch(e){
+      setConnStatus("down");
+    }
+  }
+
+  function startPolling(){
+    if(!raceId){
+      document.getElementById("connectingLabel").textContent = "No race code in the URL.";
+      return;
+    }
+    pollOnce();
+    if(pollHandle) clearInterval(pollHandle);
+    pollHandle = setInterval(pollOnce, POLL_MS);
+  }
+
+  function setConnStatus(status){
+    const dot = document.getElementById("connDot");
+    dot.className = "conn-dot " + (status === "live" ? "live" : status === "down" ? "down" : "");
+    dot.title = status === "live" ? "Connected" : status === "down" ? "Couldn't reach the server — retrying…" : "Connecting…";
+  }
+
+  // Sends one action (start, lap, log intake, ...) to the server and applies
+  // the response immediately, so the person who acted sees it right away
+  // instead of waiting for the next poll. Other open tabs pick it up on
+  // their next poll, within POLL_MS.
+  async function send(type, payload){
+    if(!raceId) return;
+    try{
+      const res = await fetch("/api/races/"+encodeURIComponent(raceId)+"/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, payload: payload||{} })
+      });
+      if(!res.ok) throw new Error("action failed");
+      const data = await res.json();
+      applyServerResponse(data);
+    } catch(e){
+      setConnStatus("down");
+      // The next poll (or the user's next action) will retry and resync.
+    }
+  }
+
+  /* ---------------- time helpers ---------------- */
+
+  function localNow(){ return Date.now() + clockOffsetMs; }
+
+  function getNow(){
+    if(state.timer.status === "stopped" && state.timer.stopTimestamp) return state.timer.stopTimestamp;
+    return localNow();
+  }
+
+  function getElapsedMs(){
+    if(!state || state.timer.status === "setup" || !state.timer.startTimestamp) return 0;
+    const now = getNow();
+    let pausedTotal = 0;
+    for(const p of state.timer.pausedIntervals){
+      const end = (p.end != null) ? p.end : now;
+      pausedTotal += Math.max(0, end - p.start);
+    }
+    return Math.max(0, (now - state.timer.startTimestamp) - pausedTotal);
+  }
+
+  function fmtElapsed(ms){
+    const totalSec = Math.floor(ms/1000);
+    const h = Math.floor(totalSec/3600);
+    const m = Math.floor((totalSec%3600)/60);
+    const s = totalSec%60;
+    return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  }
+
+  function fmtClock(ts){
+    if(!ts) return "—";
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+  }
+
+  function fmtMinutesElapsed(ms){
+    const totalMin = Math.floor(ms/60000);
+    const h = Math.floor(totalMin/60);
+    const m = totalMin%60;
+    return h>0 ? h+"h "+m+"m" : m+"m";
+  }
+
+  /* ---------------- target segment math ---------------- */
+
+  function latestSegmentAt(atMs){
+    let seg = state.targets[0];
+    for(const s of state.targets){
+      if(s.atElapsedMs <= atMs) seg = s; else break;
+    }
+    return seg;
+  }
+
+  function currentTargets(){
+    return latestSegmentAt(getElapsedMs());
+  }
+
+  // integrate a per-hour rate across target segments up to atMs
+  function expectedCumulativeRate(key, atMs){
+    let total = 0;
+    const segs = state.targets;
+    for(let i=0;i<segs.length;i++){
+      const segStart = segs[i].atElapsedMs;
+      if(segStart >= atMs) break;
+      const segEnd = (i+1<segs.length) ? Math.min(segs[i+1].atElapsedMs, atMs) : atMs;
+      if(segEnd <= segStart) continue;
+      const hours = (segEnd - segStart)/HOUR;
+      total += segs[i][key]*hours;
+    }
+    return total;
+  }
+
+  function actualCumulative(key, atMs){
+    let total = 0;
+    for(const l of state.logs){
+      if(l.atElapsedMs <= atMs) total += (l[key]||0);
+    }
+    return total;
+  }
+
+  function actualFluidLitersUpTo(atMs){
+    return actualCumulative("fluidMl", atMs)/1000;
+  }
+
+  // electrolytes: expected = for each log, fluid consumed (L) * target concentration active at that moment
+  function expectedElectrolyteCumulative(atMs){
+    let total = 0;
+    for(const l of state.logs){
+      if(l.atElapsedMs <= atMs){
+        const seg = latestSegmentAt(l.atElapsedMs);
+        total += (l.fluidMl/1000) * (seg.electrolyte||0);
+      }
+    }
+    return total;
+  }
+
+  /* ---------------- audit log ---------------- */
+
+  /* ---------------- rendering: shell / nav ---------------- */
+
+  let currentView = "setup"; // purely local UI state; not shared across users
+
+  function setView(view){
+    currentView = view;
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    document.getElementById("view-"+view).classList.add("active");
+    document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active", b.dataset.view===view));
+    if(view === "summary") renderSummary();
+  }
+
+  function renderHeader(){
+    document.getElementById("headerRaceName").textContent = state.setup.raceName || "No race set up yet";
+    document.getElementById("headerElapsed").textContent = fmtElapsed(getElapsedMs());
+    const pill = document.getElementById("statusPill");
+    const statusLabels = {setup:"Not started", running:"Running", paused:"Paused", stopped:"Complete"};
+    pill.textContent = statusLabels[state.timer.status] || "Not started";
+    pill.className = "status-pill " + (state.timer.status==="running"?"running":state.timer.status==="paused"?"paused":state.timer.status==="stopped"?"stopped":"");
+  }
+
+  /* ---------------- setup view ---------------- */
+
+  function fillSetupForm(){
+    document.getElementById("raceName").value = state.setup.raceName;
+    document.getElementById("scheduledStart").value = state.setup.scheduledStart;
+    document.getElementById("terrain").value = state.setup.terrain;
+    document.getElementById("startTemp").value = state.setup.startTemp;
+    document.getElementById("tempUnit").value = state.setup.tempUnit;
+    document.getElementById("conditions").value = state.setup.conditions;
+    document.getElementById("setupNotes").value = state.setup.notes;
+    const seg0 = state.targets[0];
+    document.getElementById("t-cal").value = seg0.cal;
+    document.getElementById("t-carb").value = seg0.carb;
+    document.getElementById("t-fluid").value = seg0.fluid;
+    document.getElementById("t-electrolyte").value = seg0.electrolyte;
+    document.getElementById("autoLapEnabled").checked = !!state.autoLap.enabled;
+    document.getElementById("autoLapInterval").value = state.autoLap.intervalMinutes;
+    document.getElementById("autoLapIntervalField").style.display = state.autoLap.enabled ? "block" : "none";
+  }
+
+  document.getElementById("autoLapEnabled").addEventListener("change", function(){
+    document.getElementById("autoLapIntervalField").style.display = this.checked ? "block" : "none";
+  });
+
+  document.getElementById("setupForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    send("setup", {
+      raceName: document.getElementById("raceName").value.trim(),
+      scheduledStart: document.getElementById("scheduledStart").value,
+      terrain: document.getElementById("terrain").value,
+      startTemp: document.getElementById("startTemp").value,
+      tempUnit: document.getElementById("tempUnit").value,
+      conditions: document.getElementById("conditions").value,
+      notes: document.getElementById("setupNotes").value,
+      autoLap: {
+        enabled: document.getElementById("autoLapEnabled").checked,
+        intervalMinutes: Math.max(1, Number(document.getElementById("autoLapInterval").value)||30)
+      },
+      targets: {
+        cal: Number(document.getElementById("t-cal").value)||0,
+        carb: Number(document.getElementById("t-carb").value)||0,
+        fluid: Number(document.getElementById("t-fluid").value)||0,
+        electrolyte: Number(document.getElementById("t-electrolyte").value)||0
+      }
+    });
+    setView("race");
+  });
+
+  /* ---------------- race view: controls ---------------- */
+
+  document.getElementById("startBtn").addEventListener("click", function(){
+    if(state.timer.status !== "setup") return;
+    send("start");
+  });
+
+  document.getElementById("pauseBtn").addEventListener("click", function(){
+    if(state.timer.status !== "running" && state.timer.status !== "paused") return;
+    send("pauseToggle");
+  });
+
+  document.getElementById("lapBtn").addEventListener("click", function(){
+    if(state.timer.status !== "running" && state.timer.status !== "paused") return;
+    send("lap");
+  });
+
+  document.getElementById("stopBtn").addEventListener("click", function(){
+    if(state.timer.status !== "running" && state.timer.status !== "paused") return;
+    if(!confirm("Stop and complete the race? This will lock in the final time.")) return;
+    send("stop");
+    setView("summary");
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    if(!confirm("Reset all data? This clears the race, log, and history for everyone viewing this race code.")) return;
+    send("reset");
+    setView("setup");
+  });
+
+  /* ---------------- targets form (race view) ---------------- */
+
+  function fillTargetsForm(){
+    const t = currentTargets();
+    document.getElementById("e-cal").value = t.cal;
+    document.getElementById("e-carb").value = t.carb;
+    document.getElementById("e-fluid").value = t.fluid;
+    document.getElementById("e-electrolyte").value = t.electrolyte;
+  }
+
+  document.getElementById("targetsForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    send("updateTargets", {
+      cal: Number(document.getElementById("e-cal").value)||0,
+      carb: Number(document.getElementById("e-carb").value)||0,
+      fluid: Number(document.getElementById("e-fluid").value)||0,
+      electrolyte: Number(document.getElementById("e-electrolyte").value)||0
+    });
+  });
+
+  /* ---------------- conditions form ---------------- */
+
+  document.getElementById("conditionsForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    send("updateConditions", {
+      temp: document.getElementById("c-temp").value,
+      unit: document.getElementById("c-tempUnit").value,
+      conditions: document.getElementById("c-conditions").value,
+      note: document.getElementById("c-note").value.trim()
+    });
+    document.getElementById("c-note").value = "";
+  });
+
+  /* ---------------- log intake modal ---------------- */
+
+  const logModal = document.getElementById("logModal");
+  document.getElementById("openLogBtn").addEventListener("click", function(){
+    document.getElementById("l-cal").value = 0;
+    document.getElementById("l-carb").value = 0;
+    document.getElementById("l-fluid").value = 0;
+    document.getElementById("l-electrolyte").value = 0;
+    document.getElementById("l-minutesAgo").value = 0;
+    document.getElementById("l-note").value = "";
+    logModal.classList.remove("hidden");
+    document.getElementById("l-cal").focus();
+  });
+  document.getElementById("cancelLogBtn").addEventListener("click", function(){ logModal.classList.add("hidden"); });
+  logModal.addEventListener("click", function(e){ if(e.target===logModal) logModal.classList.add("hidden"); });
+
+  document.getElementById("logForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    send("logIntake", {
+      calories: Number(document.getElementById("l-cal").value)||0,
+      carbs: Number(document.getElementById("l-carb").value)||0,
+      fluidMl: Number(document.getElementById("l-fluid").value)||0,
+      electrolyteMg: Number(document.getElementById("l-electrolyte").value)||0,
+      note: document.getElementById("l-note").value.trim(),
+      minutesAgo: Number(document.getElementById("l-minutesAgo").value)||0
+    });
+    logModal.classList.add("hidden");
+  });
+
+  /* ---------------- add note modal ---------------- */
+
+  const noteModal = document.getElementById("noteModal");
+  document.getElementById("openNoteBtn").addEventListener("click", function(){
+    document.getElementById("n-text").value = "";
+    document.getElementById("n-minutesAgo").value = 0;
+    noteModal.classList.remove("hidden");
+    document.getElementById("n-text").focus();
+  });
+  document.getElementById("cancelNoteBtn").addEventListener("click", function(){ noteModal.classList.add("hidden"); });
+  noteModal.addEventListener("click", function(e){ if(e.target===noteModal) noteModal.classList.add("hidden"); });
+
+  document.getElementById("noteForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const text = document.getElementById("n-text").value.trim();
+    if(!text) return;
+    send("addNote", {
+      text,
+      minutesAgo: Number(document.getElementById("n-minutesAgo").value)||0
+    });
+    noteModal.classList.add("hidden");
+  });
+
+  /* ---------------- metric cards ---------------- */
+
+  const METRIC_DEFS = [
+    {key:"cal", logKey:"calories", label:"Calories", unit:"kcal", rateUnit:"/ hr"},
+    {key:"carb", logKey:"carbs", label:"Carbohydrates", unit:"g", rateUnit:"g/hr"},
+    {key:"fluid", logKey:"fluidMl", label:"Fluid", unit:"mL", rateUnit:"mL/hr"}
+  ];
+
+  function buildMetricCards(){
+    const grid = document.getElementById("metricsGrid");
+    grid.innerHTML = "";
+    metricEls = {};
+    for(const def of METRIC_DEFS){
+      const card = document.createElement("div");
+      card.className = "metric-card";
+      card.innerHTML =
+        '<div class="m-label"><span>'+def.label+'</span><span class="m-target" data-el="target"></span></div>'+
+        '<div class="m-actual" data-el="actual"></div>'+
+        '<div class="m-delta" data-el="delta"></div>'+
+        '<div class="m-suggest" data-el="suggest"></div>';
+      grid.appendChild(card);
+      metricEls[def.key] = {
+        card,
+        target: card.querySelector('[data-el="target"]'),
+        actual: card.querySelector('[data-el="actual"]'),
+        delta: card.querySelector('[data-el="delta"]'),
+        suggest: card.querySelector('[data-el="suggest"]')
+      };
+    }
+    // electrolyte card (concentration-based, different shape)
+    const eCard = document.createElement("div");
+    eCard.className = "metric-card";
+    eCard.innerHTML =
+      '<div class="m-label"><span>Electrolytes</span><span class="m-target" data-el="target"></span></div>'+
+      '<div class="m-actual" data-el="actual"></div>'+
+      '<div class="m-delta" data-el="delta"></div>'+
+      '<div class="m-suggest" data-el="suggest"></div>';
+    grid.appendChild(eCard);
+    metricEls.electrolyte = {
+      card: eCard,
+      target: eCard.querySelector('[data-el="target"]'),
+      actual: eCard.querySelector('[data-el="actual"]'),
+      delta: eCard.querySelector('[data-el="delta"]'),
+      suggest: eCard.querySelector('[data-el="suggest"]')
+    };
+  }
+
+  function statusFromDelta(delta, targetRatePerHr){
+    if(targetRatePerHr<=0) return "good";
+    const hourFraction = Math.abs(delta)/targetRatePerHr;
+    if(delta >= -0.05*targetRatePerHr) return "good";
+    if(hourFraction <= 1) return "warn";
+    return "bad";
+  }
+
+  function updateMetricCards(){
+    const elapsed = getElapsedMs();
+    const t = currentTargets();
+
+    for(const def of METRIC_DEFS){
+      const els = metricEls[def.key];
+      const expected = expectedCumulativeRate(def.key, elapsed);
+      const actual = actualCumulative(def.logKey, elapsed);
+      const delta = actual - expected;
+      const st = statusFromDelta(delta, t[def.key]);
+      els.card.className = "metric-card status-"+st;
+      els.target.textContent = "target "+t[def.key]+" "+def.rateUnit;
+      els.actual.innerHTML = Math.round(actual)+'<span class="unit">'+def.unit+'</span>';
+      els.delta.className = "m-delta "+st;
+      if(delta >= -0.5){
+        els.delta.textContent = (delta>=0?"+":"")+Math.round(delta)+" "+def.unit+" ahead of pace";
+      } else {
+        els.delta.textContent = Math.round(Math.abs(delta))+" "+def.unit+" behind pace";
+      }
+      if(delta < -0.05*Math.max(t[def.key],1) && t[def.key]>0){
+        const catchup = Math.round(t[def.key] + Math.abs(delta));
+        els.suggest.textContent = "To close the gap, aim for roughly "+catchup+" "+def.rateUnit+" over the next hour.";
+      } else if(delta >= -0.5){
+        els.suggest.textContent = "On pace — keep it steady.";
+      } else {
+        els.suggest.textContent = "";
+      }
+    }
+
+    // electrolytes
+    const els = metricEls.electrolyte;
+    const actualMg = actualCumulative("electrolyteMg", elapsed);
+    const expectedMg = expectedElectrolyteCumulative(elapsed);
+    const fluidL = actualFluidLitersUpTo(elapsed);
+    const actualConc = fluidL>0 ? actualMg/fluidL : 0;
+    const delta = actualMg - expectedMg;
+    const st = t.electrolyte<=0 ? "good" : (Math.abs(delta) <= 0.1*Math.max(expectedMg,1) ? "good" : (Math.abs(delta) <= 0.4*Math.max(expectedMg,1) ? "warn" : "bad"));
+    els.card.className = "metric-card status-"+st;
+    els.target.textContent = "target "+t.electrolyte+" mg/L";
+    els.actual.innerHTML = Math.round(actualMg)+'<span class="unit">mg</span>';
+    els.delta.className = "m-delta "+st;
+    els.delta.textContent = Math.round(actualConc)+" mg/L so far ("+(delta>=0?"+":"")+Math.round(delta)+" mg vs. expected)";
+    if(fluidL < 0.05){
+      els.suggest.textContent = "No fluid logged yet to gauge concentration.";
+    } else if(delta < -0.1*Math.max(expectedMg,1)){
+      els.suggest.textContent = "Running low relative to fluid intake — consider adding electrolytes at the next stop.";
+    } else {
+      els.suggest.textContent = "Tracking with fluid intake.";
+    }
+  }
+
+  /* ---------------- current lap display ---------------- */
+
+  function updateLapDisplay(){
+    const wrap = document.getElementById("lapDisplayWrap");
+    if(!state.laps.length){
+      wrap.classList.add("hidden");
+      return;
+    }
+    wrap.classList.remove("hidden");
+    const lastLapAt = state.laps[state.laps.length-1].atElapsedMs;
+    const lapElapsed = Math.max(0, getElapsedMs() - lastLapAt);
+    document.getElementById("lapDisplay").textContent = fmtElapsed(lapElapsed);
+  }
+
+  /* ---------------- laps table ---------------- */
+
+  function renderLaps(){
+    const body = document.getElementById("lapsBody");
+    document.getElementById("lapCount").textContent = state.laps.length+" lap"+(state.laps.length===1?"":"s");
+    if(!state.laps.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="4">No laps recorded yet</td></tr>';
+      return;
+    }
+    body.innerHTML = state.laps.slice().reverse().map(l=>
+      '<tr><td>'+l.n+'</td><td>'+fmtElapsed(l.splitMs)+'</td><td>'+fmtElapsed(l.atElapsedMs)+'</td><td>'+fmtClock(l.timestamp)+'</td></tr>'
+    ).join("");
+  }
+
+  /* ---------------- race view master render ---------------- */
+
+  function renderRaceView(){
+    document.getElementById("timerDisplay").textContent = fmtElapsed(getElapsedMs());
+    const subLabels = {setup:"Not started — press start when the runner goes", running:"Running", paused:"Paused", stopped:"Race complete"};
+    document.getElementById("timerSub").textContent = subLabels[state.timer.status];
+
+    document.getElementById("startBtn").disabled = state.timer.status !== "setup";
+    document.getElementById("pauseBtn").disabled = (state.timer.status !== "running" && state.timer.status !== "paused");
+    document.getElementById("pauseBtn").textContent = state.timer.status === "paused" ? "Resume" : "Pause";
+    document.getElementById("lapBtn").disabled = (state.timer.status !== "running" && state.timer.status !== "paused");
+    document.getElementById("stopBtn").disabled = (state.timer.status !== "running" && state.timer.status !== "paused");
+
+    updateMetricCards();
+    updateLapDisplay();
+    renderLaps();
+    fillTargetsForm();
+  }
+
+  /* ---------------- summary view ---------------- */
+
+  function buildSampleTimes(){
+    const elapsed = getElapsedMs();
+    const set = new Set([0, elapsed]);
+    state.targets.forEach(s=>set.add(Math.min(s.atElapsedMs, elapsed)));
+    state.logs.forEach(l=>set.add(Math.min(l.atElapsedMs, elapsed)));
+    const stepCount = 40;
+    if(elapsed>0){
+      for(let i=0;i<=stepCount;i++) set.add(Math.round(elapsed*i/stepCount));
+    }
+    return Array.from(set).sort((a,b)=>a-b);
+  }
+
+  function renderSummary(){
+    const elapsed = getElapsedMs();
+    document.getElementById("summaryRaceName").textContent = state.setup.raceName || "Untitled race";
+    document.getElementById("summaryStatusLabel").textContent =
+      state.timer.status === "stopped" ? "Final results" : (state.timer.status==="setup" ? "Not started" : "In progress");
+
+    const metaBits = [];
+    if(state.setup.terrain) metaBits.push(state.setup.terrain);
+    if(state.setup.startTemp) metaBits.push(state.setup.startTemp+"°"+state.setup.tempUnit+" start");
+    if(state.setup.conditions) metaBits.push(state.setup.conditions);
+    metaBits.push("elapsed "+fmtElapsed(elapsed));
+    metaBits.push(state.laps.length+" laps");
+    document.getElementById("summaryMeta").textContent = metaBits.join("  ·  ");
+
+    // totals
+    const t = currentTargets();
+    const totalsGrid = document.getElementById("totalsGrid");
+    const rows = [
+      {label:"Calories", actual: actualCumulative("calories", elapsed), expected: expectedCumulativeRate("cal", elapsed), unit:"kcal"},
+      {label:"Carbohydrates", actual: actualCumulative("carbs", elapsed), expected: expectedCumulativeRate("carb", elapsed), unit:"g"},
+      {label:"Fluid", actual: actualCumulative("fluidMl", elapsed), expected: expectedCumulativeRate("fluid", elapsed), unit:"mL"},
+      {label:"Electrolytes", actual: actualCumulative("electrolyteMg", elapsed), expected: expectedElectrolyteCumulative(elapsed), unit:"mg"}
+    ];
+    totalsGrid.innerHTML = rows.map(r=>{
+      const delta = r.actual - r.expected;
+      const deltaStr = (delta>=0?"+":"")+Math.round(delta)+" "+r.unit+" vs. target";
+      return '<div class="total-card"><div class="t-label">'+r.label+'</div>'+
+        '<div class="t-value">'+Math.round(r.actual)+' <span style="font-size:13px;color:var(--text-muted)">'+r.unit+'</span></div>'+
+        '<div class="t-sub">'+deltaStr+'</div></div>';
+    }).join("");
+
+    renderCharts(elapsed);
+    renderAuditTable();
+  }
+
+  function renderCharts(elapsed){
+    const times = buildSampleTimes();
+
+    function series(rateKey, logKey, isElectrolyte){
+      const actual = [], expected = [];
+      for(const ms of times){
+        actual.push(actualCumulative(logKey, ms));
+        expected.push(isElectrolyte ? expectedElectrolyteCumulative(ms) : expectedCumulativeRate(rateKey, ms));
+      }
+      return {actual, expected};
+    }
+
+    const chartDefs = [
+      {id:"chartCal", rateKey:"cal", logKey:"calories", isElectrolyte:false},
+      {id:"chartCarb", rateKey:"carb", logKey:"carbs", isElectrolyte:false},
+      {id:"chartFluid", rateKey:"fluid", logKey:"fluidMl", isElectrolyte:false},
+      {id:"chartElectrolyte", rateKey:"electrolyte", logKey:"electrolyteMg", isElectrolyte:true}
+    ];
+
+    for(const def of chartDefs){
+      const data = series(def.rateKey, def.logKey, def.isElectrolyte);
+      const container = document.getElementById(def.id);
+      if(container) container.innerHTML = buildSvgLineChart(times, data.actual, data.expected);
+    }
+  }
+
+  // Dependency-free SVG line chart: solid "actual" line, dashed "target/expected" line.
+  function buildSvgLineChart(times, actualArr, expectedArr){
+    const W = 640, H = 220, padL = 46, padR = 12, padT = 14, padB = 26;
+    const plotW = W-padL-padR, plotH = H-padT-padB;
+    const n = times.length;
+    if(n === 0){
+      return '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+        '<text x="'+(W/2)+'" y="'+(H/2)+'" text-anchor="middle" font-size="12" fill="#5E6E68" font-family="IBM Plex Sans, sans-serif">No data yet</text></svg>';
+    }
+    const maxVal = Math.max(1, ...actualArr, ...expectedArr);
+    const x = i => padL + (n<=1 ? plotW/2 : (plotW*i/(n-1)));
+    const y = v => padT + plotH - (plotH*Math.min(v,maxVal)/maxVal);
+    const pathFor = arr => arr.map((v,i)=>(i===0?"M":"L")+x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ");
+
+    const gridFractions = [0, 0.5, 1];
+    let grid = "";
+    for(const f of gridFractions){
+      const yy = padT + plotH - (plotH*f);
+      const val = Math.round(maxVal*f);
+      grid += '<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+yy.toFixed(1)+'" y2="'+yy.toFixed(1)+'" stroke="#1D292D" stroke-width="1"/>'+
+        '<text x="'+(padL-8)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="#8B9A94" font-family="IBM Plex Mono, monospace">'+val+'</text>';
+    }
+
+    const xIdxs = n>1 ? [0, Math.floor((n-1)/2), n-1] : [0];
+    let xLabels = "";
+    for(const i of xIdxs){
+      xLabels += '<text x="'+x(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="#8B9A94" font-family="IBM Plex Mono, monospace">'+fmtMinutesElapsed(times[i])+'</text>';
+    }
+
+    return '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">'+
+      grid +
+      '<path d="'+pathFor(expectedArr)+'" fill="none" stroke="#C9A24B" stroke-width="2" stroke-dasharray="6,4"/>'+
+      '<path d="'+pathFor(actualArr)+'" fill="none" stroke="#6BAFC6" stroke-width="2.5"/>'+
+      xLabels +
+      '</svg>';
+  }
+
+  function renderAuditTable(){
+    const body = document.getElementById("auditBody");
+    if(!state.audit.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="4">Nothing logged yet</td></tr>';
+      return;
+    }
+    const typeLabels = {
+      setup:"Setup", race_start:"Start", race_pause:"Pause", race_resume:"Resume", race_stop:"Stop",
+      lap:"Lap", intake_log:"Intake", target_change:"Targets", condition_change:"Conditions", note:"Note"
+    };
+    const sorted = state.audit.slice().sort((a,b)=> a.reportedElapsedMs - b.reportedElapsedMs);
+    body.innerHTML = sorted.map(a=>{
+      const raceTimeCell = fmtElapsed(a.reportedElapsedMs);
+      const loggedCell = '<span style="color:var(--text-dim)">'+fmtElapsed(a.loggedElapsedMs)+' ('+fmtClock(a.loggedTimestamp)+')</span>';
+      return '<tr><td>'+raceTimeCell+'</td><td>'+loggedCell+'</td><td>'+(typeLabels[a.type]||a.type)+'</td><td>'+escapeHtml(a.summary+(a.detail?" — "+a.detail:""))+'</td></tr>';
+    }).join("");
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  document.getElementById("printBtn").addEventListener("click", function(){ window.print(); });
+
+  /* ---------------- nav wiring ---------------- */
+
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=> setView(btn.dataset.view));
+  });
+
+  /* ---------------- share banner ---------------- */
+
+  document.getElementById("shareBtn").addEventListener("click", function(){
+    const url = location.origin + "/r/" + raceId;
+    document.getElementById("shareUrl").textContent = url;
+    document.getElementById("shareBanner").classList.remove("hidden");
+  });
+  document.getElementById("closeShareBtn").addEventListener("click", function(){
+    document.getElementById("shareBanner").classList.add("hidden");
+  });
+  document.getElementById("copyShareBtn").addEventListener("click", async function(){
+    const url = location.origin + "/r/" + raceId;
+    try{
+      await navigator.clipboard.writeText(url);
+      this.textContent = "Copied!";
+      setTimeout(()=>{ this.textContent = "Copy link"; }, 1500);
+    } catch(e){
+      /* clipboard API unavailable (e.g. non-HTTPS); the URL is still shown in the banner to copy manually */
+    }
+  });
+
+  /* ---------------- master render + tick ---------------- */
+
+  function chooseInitialView(){
+    if(!state) return "setup";
+    if(state.timer.status === "setup") return "setup";
+    if(state.timer.status === "stopped") return "summary";
+    return "race";
+  }
+
+  let initialViewChosen = false;
+
+  function renderAll(){
+    if(!state) return;
+    if(!initialViewChosen){
+      initialViewChosen = true;
+      setView(chooseInitialView());
+    }
+    renderHeader();
+    fillSetupForm();
+    renderRaceView();
+    if(currentView === "summary") renderSummary();
+  }
+
+  function startTicking(){
+    if(tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(()=>{
+      if(!state) return;
+      renderHeader();
+      if(document.getElementById("view-race").classList.contains("active")){
+        document.getElementById("timerDisplay").textContent = fmtElapsed(getElapsedMs());
+        updateMetricCards();
+        updateLapDisplay();
+      }
+    }, 1000);
+  }
+
+  /* ---------------- boot ---------------- */
+
+  function boot(){
+    buildMetricCards();
+    startPolling();
+    startTicking();
+  }
+
+  boot();
+
+})();
+</script>
+</body>
+</html>

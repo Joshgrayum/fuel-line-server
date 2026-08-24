@@ -1,0 +1,16 @@
+{
+  "name": "fuel-line-server",
+  "version": "1.0.0",
+  "description": "Self-hosted shared race fueling tracker for ultramarathon crews.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node raceLogic.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

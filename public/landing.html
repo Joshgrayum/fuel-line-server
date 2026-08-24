@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuel Line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1517; --bg-elev:#161E21; --bg-card:#1B2529; --line:#263438; --line-soft:#1D292D;
+    --text:#EDEFEA; --text-muted:#8B9A94; --text-dim:#5E6E68;
+    --accent:#4C8FA6; --accent-hi:#6BAFC6; --accent-2:#C9A24B;
+    --bad:#C1553D;
+    --font-display:'Big Shoulders Display', sans-serif; --font-mono:'IBM Plex Mono', monospace; --font-body:'IBM Plex Sans', sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body); min-height:100vh; }
+  body{ display:flex; align-items:center; justify-content:center; padding:20px; }
+  .shell{ max-width:460px; width:100%; }
+  .contour-bg{ position:absolute; inset:0; pointer-events:none; opacity:0.5;
+    background-image:repeating-linear-gradient(180deg, transparent 0 27px, var(--line-soft) 27px 28px);
+    -webkit-mask-image:linear-gradient(180deg, black, transparent 92%); mask-image:linear-gradient(180deg, black, transparent 92%); }
+  .hero{ position:relative; text-align:center; padding:36px 10px 10px; overflow:hidden; }
+  .eyebrow{ font-family:var(--font-mono); color:var(--accent-2); font-size:12px; letter-spacing:0.18em; text-transform:uppercase; margin-bottom:10px; }
+  h1{ font-family:var(--font-display); font-weight:700; letter-spacing:0.02em; text-transform:uppercase; font-size:40px; margin:0; line-height:1; }
+  p.lede{ color:var(--text-muted); font-size:14px; margin-top:12px; }
+  .panel{ background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:22px; margin-top:20px; }
+  .panel h3{ font-family:var(--font-display); font-size:14px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted); margin:0 0 14px; }
+  button, input{ font-family:inherit; }
+  input{ width:100%; background:var(--bg-elev); border:1px solid var(--line); color:var(--text); padding:11px 12px; border-radius:6px; font-size:16px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.05em; }
+  .btn-primary{ width:100%; background:var(--accent); color:#0B1315; border:none; padding:13px 18px; border-radius:8px; font-size:14px; font-weight:700; letter-spacing:0.03em; cursor:pointer; margin-top:10px; }
+  .btn-primary:hover{ background:var(--accent-hi); }
+  .btn-secondary{ width:100%; background:transparent; border:1px solid var(--accent); color:var(--accent-hi); padding:12px 18px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; margin-top:10px; }
+  .btn-secondary:hover{ background:rgba(76,143,166,0.1); }
+  .error{ color:var(--bad); font-size:12px; margin-top:8px; min-height:14px; }
+  .divider{ text-align:center; color:var(--text-dim); font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin:26px 0 6px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="contour-bg"></div>
+      <div class="eyebrow">Ultra crew fueling tracker</div>
+      <h1>Fuel Line</h1>
+      <p class="lede">Track calories, carbs, fluid, and electrolytes against target during an ultramarathon &mdash; live, shared with your crew.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Start a new race</h3>
+      <button class="btn-primary" id="newRaceBtn">Start new race →</button>
+    </div>
+
+    <div class="divider">or</div>
+
+    <div class="panel">
+      <h3>Join an existing race</h3>
+      <input type="text" id="raceCode" placeholder="RACE CODE" maxlength="8" autocomplete="off">
+      <button class="btn-secondary" id="joinBtn">Join race</button>
+      <div class="error" id="joinError"></div>
+    </div>
+  </div>
+
+<script>
+  document.getElementById("newRaceBtn").addEventListener("click", async function(){
+    this.disabled = true;
+    this.textContent = "Creating…";
+    try{
+      const res = await fetch("/api/races", { method:"POST" });
+      const data = await res.json();
+      if(data && data.id){ location.href = "/r/"+data.id; }
+      else throw new Error("no id returned");
+    } catch(e){
+      this.disabled = false;
+      this.textContent = "Start new race →";
+      document.getElementById("joinError").textContent = "Could not create a race. Check the server is running.";
+    }
+  });
+
+  async function joinRace(){
+    const code = document.getElementById("raceCode").value.trim().toLowerCase();
+    const errEl = document.getElementById("joinError");
+    errEl.textContent = "";
+    if(!code){ errEl.textContent = "Enter a race code."; return; }
+    try{
+      const res = await fetch("/api/races/"+encodeURIComponent(code)+"/exists");
+      const data = await res.json();
+      if(data && data.exists){ location.href = "/r/"+code; }
+      else errEl.textContent = "No race found with that code.";
+    } catch(e){
+      errEl.textContent = "Could not reach the server.";
+    }
+  }
+  document.getElementById("joinBtn").addEventListener("click", joinRace);
+  document.getElementById("raceCode").addEventListener("keydown", function(e){ if(e.key==="Enter") joinRace(); });
+</script>
+</body>
+</html>
