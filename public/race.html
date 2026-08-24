@@ -201,6 +201,8 @@
   .legend-dot{ display:inline-block; width:16px; height:0; border-top:2px solid; margin-right:5px; vertical-align:middle; }
   .legend-dot.actual{ border-top-style:solid; border-top-color:#6BAFC6; }
   .legend-dot.target{ border-top-style:dashed; border-top-color:#C9A24B; }
+  .legend-swatch{ display:inline-block; width:12px; height:12px; margin-right:5px; vertical-align:middle; border-radius:2px; }
+  .legend-swatch.behind{ background:var(--bad); opacity:0.4; }
   .print-btn{ margin-top:6px; }
 
   @media print{
@@ -473,22 +475,22 @@
 
       <div class="chart-wrap">
         <h3>Calories — actual vs. target</h3>
-        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target<span class="legend-swatch behind"></span>Behind target</div>
         <div class="chart-canvas-box" id="chartCal"></div>
       </div>
       <div class="chart-wrap">
         <h3>Carbohydrates — actual vs. target</h3>
-        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target<span class="legend-swatch behind"></span>Behind target</div>
         <div class="chart-canvas-box" id="chartCarb"></div>
       </div>
       <div class="chart-wrap">
         <h3>Fluid — actual vs. target</h3>
-        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target</div>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Target<span class="legend-swatch behind"></span>Behind target</div>
         <div class="chart-canvas-box" id="chartFluid"></div>
       </div>
       <div class="chart-wrap">
         <h3>Electrolytes — actual vs. expected</h3>
-        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Expected</div>
+        <div class="chart-legend"><span class="legend-dot actual"></span>Actual<span class="legend-dot target"></span>Expected<span class="legend-swatch behind"></span>Behind target</div>
         <div class="chart-canvas-box" id="chartElectrolyte"></div>
       </div>
 
@@ -770,6 +772,10 @@
 
   /* ---------------- setup view ---------------- */
 
+  function formIsFocused(formEl){
+    return formEl.contains(document.activeElement) && document.activeElement !== document.body;
+  }
+
   function fillSetupForm(){
     document.getElementById("raceName").value = state.setup.raceName;
     document.getElementById("scheduledStart").value = state.setup.scheduledStart;
@@ -882,6 +888,11 @@
   /* ---------------- log intake modal ---------------- */
 
   const logModal = document.getElementById("logModal");
+  ["l-cal","l-carb","l-fluid","l-electrolyte","l-minutesAgo"].forEach(function(id){
+    const el = document.getElementById(id);
+    el.addEventListener("focus", function(){ this.select(); });
+    el.addEventListener("mouseup", function(e){ e.preventDefault(); });
+  });
   document.getElementById("openLogBtn").addEventListener("click", function(){
     document.getElementById("l-cal").value = 0;
     document.getElementById("l-carb").value = 0;
@@ -1081,7 +1092,7 @@
     updateMetricCards();
     updateLapDisplay();
     renderLaps();
-    fillTargetsForm();
+    if(!formIsFocused(document.getElementById("targetsForm"))) fillTargetsForm();
   }
 
   /* ---------------- summary view ---------------- */
@@ -1173,6 +1184,17 @@
     const y = v => padT + plotH - (plotH*Math.min(v,maxVal)/maxVal);
     const pathFor = arr => arr.map((v,i)=>(i===0?"M":"L")+x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ");
 
+    // shade the gap red wherever actual has fallen behind target, so it reads at a glance
+    let behindFill = "";
+    for(let i=0;i<n-1;i++){
+      if(actualArr[i] < expectedArr[i] || actualArr[i+1] < expectedArr[i+1]){
+        const ax0=x(i).toFixed(1), ax1=x(i+1).toFixed(1);
+        const ay0=y(actualArr[i]).toFixed(1), ay1=y(actualArr[i+1]).toFixed(1);
+        const ey1=y(expectedArr[i+1]).toFixed(1), ey0=y(expectedArr[i]).toFixed(1);
+        behindFill += '<path d="M'+ax0+','+ay0+' L'+ax1+','+ay1+' L'+ax1+','+ey1+' L'+ax0+','+ey0+' Z" fill="#C1553D" fill-opacity="0.18"/>';
+      }
+    }
+
     const gridFractions = [0, 0.5, 1];
     let grid = "";
     for(const f of gridFractions){
@@ -1190,6 +1212,7 @@
 
     return '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">'+
       grid +
+      behindFill +
       '<path d="'+pathFor(expectedArr)+'" fill="none" stroke="#C9A24B" stroke-width="2" stroke-dasharray="6,4"/>'+
       '<path d="'+pathFor(actualArr)+'" fill="none" stroke="#6BAFC6" stroke-width="2.5"/>'+
       xLabels +
@@ -1267,7 +1290,7 @@
       setView(chooseInitialView());
     }
     renderHeader();
-    fillSetupForm();
+    if(!formIsFocused(document.getElementById("setupForm"))) fillSetupForm();
     renderRaceView();
     if(currentView === "summary") renderSummary();
   }
